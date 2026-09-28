@@ -6,6 +6,8 @@ const cfg = require('../config');
 
 let DATA = [];
 let cargadoEn = null;
+const cache = new Map(); // ultimos resultados, para paginar sin recalcular
+const MAX_CACHE = 5;
 
 async function cargar() {
   if (!fs.existsSync(cfg.archivoDatos)) {
@@ -16,6 +18,7 @@ async function cargar() {
   const nuevo = JSON.parse(txt);
   if (!Array.isArray(nuevo)) throw new Error('invima_datos.json no es un arreglo');
   DATA = nuevo;
+  cache.clear();
   cargadoEn = new Date();
   return DATA.length;
 }
@@ -38,4 +41,19 @@ function buscar({ q = '', estado = 'all', orden = '', asc = true } = {}) {
   return res;
 }
 
-module.exports = { cargar, total, cargadoEnFecha, buscar };
+/** Igual que buscar() pero recuerda los ultimos resultados y cuenta vigentes/vencidos. */
+function buscarConCache(f) {
+  const key = [String(f.q || '').trim().toLowerCase(), f.estado || 'all', f.orden || '', f.asc === false ? 0 : 1].join('|');
+  let hit = cache.get(key);
+  if (!hit) {
+    const filas = buscar(f);
+    let vig = 0, ven = 0;
+    for (const r of filas) { if (r.e === 'Vigente') vig++; else if (r.e === 'Vencido') ven++; }
+    hit = { filas, vig, ven };
+    cache.set(key, hit);
+    if (cache.size > MAX_CACHE) cache.delete(cache.keys().next().value);
+  }
+  return hit;
+}
+
+module.exports = { cargar, total, cargadoEnFecha, buscar, buscarConCache };

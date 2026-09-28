@@ -130,7 +130,7 @@ td{padding:9px 12px;font-size:12px;vertical-align:middle}
 <div class="splash" id="splash">
   <div style="font-size:48px;margin-bottom:16px">💊</div>
   <h2>Consultor INVIMA</h2>
-  <p id="splashMsg">Cargando 309.198 registros sanitarios…</p>
+  <p id="splashMsg">Conectando con el servidor…</p>
   <div class="splash-prog"><div class="splash-bar" id="splashBar"></div></div>
   <div class="splash-pct" id="splashPct">0%</div>
 </div>
@@ -142,7 +142,7 @@ td{padding:9px 12px;font-size:12px;vertical-align:middle}
     <div class="hdr-ico">RS</div>
     <div><h1>Consultor de Registros Sanitarios INVIMA</h1></div>
   </div>
-  <p>309.198 registros · Vigentes + Vencidos · Fuente: datos.gov.co INVIMA · Actualizado septiembre 2026</p>
+  <p><span id="nReg">—</span> registros · Vigentes + Vencidos · Fuente: datos.gov.co INVIMA · Actualizado septiembre 2026</p>
   <div class="status">
     <div class="dot listo" id="dot"></div>
     <span class="stxt" id="stxt">Listo — busca cualquier medicamento</span>
@@ -150,9 +150,9 @@ td{padding:9px 12px;font-size:12px;vertical-align:middle}
 </div>
 
 <div class="mets">
-  <div class="mc"><div class="mc-l">Total registros</div><div class="mc-v t" id="mTot">309.198</div></div>
-  <div class="mc"><div class="mc-l">Vigentes</div><div class="mc-v v" id="mVig">155.807</div></div>
-  <div class="mc"><div class="mc-l">Vencidos</div><div class="mc-v x" id="mVen">153.391</div></div>
+  <div class="mc"><div class="mc-l">Total registros</div><div class="mc-v t" id="mTot">—</div></div>
+  <div class="mc"><div class="mc-l">Vigentes</div><div class="mc-v v" id="mVig">—</div></div>
+  <div class="mc"><div class="mc-l">Vencidos</div><div class="mc-v x" id="mVen">—</div></div>
   <div class="mc"><div class="mc-l">Resultados búsqueda</div><div class="mc-v r" id="mRes">—</div></div>
 </div>
 
@@ -221,115 +221,79 @@ td{padding:9px 12px;font-size:12px;vertical-align:middle}
 
 <script>
 // ── DATOS ──────────────────────────────────────────────────────────────────
-let DATA = [];
-let filtrado = [];
+let pageRows = [];      // solo la pagina actual (la busqueda la hace el servidor)
+let totalRes = 0;
 let filtroEstado = 'all';
 let pagActual = 1;
 let ordenCol = '';
 let ordenAsc = true;
 
-// ── CARGA DEL JSON LOCAL ──────────────────────────────────────────────────
+// ── ESTADO DEL SERVIDOR (ya no se descarga el JSON completo) ──────────────
 async function cargarDatos() {
   const splash = document.getElementById('splash');
-  const bar = document.getElementById('splashBar');
-  const pct = document.getElementById('splashPct');
   const msg = document.getElementById('splashMsg');
-
   try {
-    msg.textContent = 'Cargando archivo de datos…';
-    bar.style.width = '10%'; pct.textContent = '10%';
-
-    const resp = await fetch('invima_datos.json');
-    if (!resp.ok) throw new Error('El servidor aún no tiene datos (la primera descarga puede tardar varios minutos)');
-
-    const total = parseInt(resp.headers.get('content-length') || 0);
-    const reader = resp.body.getReader();
-    let recibido = 0;
-    const chunks = [];
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      recibido += value.length;
-      if (total) {
-        const p = Math.min(90, Math.round((recibido / total) * 85) + 10);
-        bar.style.width = p + '%';
-        pct.textContent = p + '%';
-        msg.textContent = `Cargando… ${Math.round(recibido/1024/1024)} MB`;
-      }
+    const r = await fetch('/api/estado');
+    if (!r.ok) throw new Error('El servidor no responde');
+    const e = await r.json();
+    if (!e.registros) throw new Error('El servidor aún no tiene datos (la primera descarga puede tardar unos minutos)');
+    const f = n => Number(n).toLocaleString('es-CO');
+    document.getElementById('mTot').textContent = f(e.registros);
+    document.getElementById('nReg').textContent = f(e.registros);
+    if (e.resumen) {
+      document.getElementById('mVig').textContent = f(e.resumen.vigentes || 0);
+      document.getElementById('mVen').textContent = f(e.resumen.vencidos || 0);
     }
-
-    bar.style.width = '92%'; pct.textContent = '92%';
-    msg.textContent = 'Procesando registros…';
-
-    const blob = new Blob(chunks);
-    const texto = await blob.text();
-    bar.style.width = '97%'; pct.textContent = '97%';
-
-    DATA = JSON.parse(texto);
-    bar.style.width = '100%'; pct.textContent = '100%';
-    msg.textContent = `${DATA.length.toLocaleString('es-CO')} registros cargados ✓`;
-
-    await new Promise(r => setTimeout(r, 600));
     splash.classList.add('hide');
     document.getElementById('appMain').style.display = 'block';
-    setTimeout(() => splash.style.display='none', 600);
-
+    setTimeout(() => splash.style.display = 'none', 300);
   } catch (err) {
-    msg.textContent = '⚠ Error: ' + err.message;
+    msg.textContent = '⚠ ' + err.message;
     msg.style.color = '#FAC775';
     document.getElementById('splashPct').textContent = '';
-    bar.style.background = '#E24B4A';
-    // Mostrar instrucciones
-    setTimeout(() => {
-      splash.innerHTML = `
-        <div style="color:#fff;text-align:center;max-width:500px;padding:20px">
-          <div style="font-size:48px;margin-bottom:16px">⚠️</div>
-          <h2 style="margin-bottom:12px">Archivo de datos no encontrado</h2>
-          <p style="color:rgba(255,255,255,.8);line-height:1.6;margin-bottom:16px">
-            Para que funcione, <strong>INVIMA_Consultor.html</strong> e <strong>invima_datos.json</strong>
-            deben estar en la <strong>misma carpeta</strong>.
-          </p>
-          <p style="color:rgba(255,255,255,.7);font-size:13px">
-            Ambos archivos están en tu carpeta de Descargas.<br>
-            Asegúrate de abrirlos desde allí.
-          </p>
-        </div>`;
-    }, 100);
   }
 }
 
-// ── BÚSQUEDA ──────────────────────────────────────────────────────────────
+// ── BÚSQUEDA (servidor) ───────────────────────────────────────────────────
 function buscar() {
-  const q = document.getElementById('q').value.trim().toLowerCase();
+  const q = document.getElementById('q').value.trim();
   if (q.length > 0 && q.length < 3) {
     document.getElementById('rc').textContent = 'Escribe al menos 3 caracteres';
     return;
   }
   pagActual = 1;
+  if (!q) { limpiarResultados(); return; }
+  consultar();
+}
 
-  if (!q) {
-    filtrado = [];
-    renderTabla();
-    document.getElementById('mRes').textContent = '—';
-    document.getElementById('rc').textContent = 'Busca un medicamento para ver resultados';
-    return;
-  }
-
-  const terms = q.split(' ').filter(t => t.length >= 2);
-  filtrado = DATA.filter(r => {
-    const hay = (r.p+' '+r.rs+' '+r.t+' '+r.pa+' '+r.dc+' '+r.datc).toLowerCase();
-    const passTerms = terms.every(t => hay.includes(t));
-    const passEstado = filtroEstado === 'all' ||
-      (filtroEstado === 'vig' && r.e === 'Vigente') ||
-      (filtroEstado === 'ven' && r.e === 'Vencido');
-    return passTerms && passEstado;
-  });
-
-  if (ordenCol) aplicarOrden();
-  actualizarMetricas();
+function limpiarResultados() {
+  pageRows = []; totalRes = 0;
   renderTabla();
+  document.getElementById('mRes').textContent = '—';
+  document.getElementById('rc').textContent = 'Busca un medicamento para ver resultados';
+}
+
+let consultaId = 0;
+async function consultar() {
+  const q = document.getElementById('q').value.trim();
+  const pp = parseInt(document.getElementById('pp').value);
+  const id = ++consultaId;
+  document.getElementById('rc').textContent = 'Buscando…';
+  try {
+    const p = new URLSearchParams({ q, estado: filtroEstado, orden: ordenCol, asc: ordenAsc ? '1' : '0', pagina: pagActual, pp });
+    const r = await fetch('/api/buscar?' + p.toString());
+    const d = await r.json();
+    if (id !== consultaId) return; // llego una respuesta mas nueva
+    if (!r.ok) throw new Error(d.error || 'Error de búsqueda');
+    pageRows = d.filas; totalRes = d.total;
+    document.getElementById('mRes').textContent = d.total.toLocaleString('es-CO');
+    document.getElementById('mVig').textContent = d.vig.toLocaleString('es-CO');
+    document.getElementById('mVen').textContent = d.ven.toLocaleString('es-CO');
+    document.getElementById('mTot').textContent = d.registros.toLocaleString('es-CO');
+    renderTabla();
+  } catch (err) {
+    if (id === consultaId) document.getElementById('rc').textContent = '⚠ ' + err.message;
+  }
 }
 
 function setFiltro(f, btn) {
@@ -337,7 +301,7 @@ function setFiltro(f, btn) {
   document.querySelectorAll('.fb').forEach(b => { b.className = 'fb'; });
   const clases = { all:'fb fa fa-all', vig:'fb fa fa-vig', ven:'fb fa fa-ven' };
   btn.className = clases[f];
-  if (filtrado.length > 0 || document.getElementById('q').value.trim().length >= 3) buscar();
+  if (totalRes > 0 || document.getElementById('q').value.trim().length >= 3) buscar();
 }
 
 function ordenar(col) {
@@ -345,51 +309,30 @@ function ordenar(col) {
   else { ordenCol = col; ordenAsc = true; }
   document.querySelectorAll('.sa').forEach(s => s.textContent = '');
   document.getElementById('s-'+col).textContent = ordenAsc ? ' ▲' : ' ▼';
-  aplicarOrden();
   pagActual = 1;
-  renderTabla();
-}
-
-function aplicarOrden() {
-  filtrado.sort((a, b) => {
-    const va = (a[ordenCol] || '').toString().toLowerCase();
-    const vb = (b[ordenCol] || '').toString().toLowerCase();
-    return ordenAsc ? va.localeCompare(vb,'es') : vb.localeCompare(va,'es');
-  });
-}
-
-function actualizarMetricas() {
-  const vig = filtrado.filter(r => r.e === 'Vigente').length;
-  const ven = filtrado.filter(r => r.e === 'Vencido').length;
-  document.getElementById('mRes').textContent = filtrado.length.toLocaleString('es-CO');
-  document.getElementById('mVig').textContent = vig.toLocaleString('es-CO');
-  document.getElementById('mVen').textContent = ven.toLocaleString('es-CO');
-  document.getElementById('mTot').textContent = DATA.length.toLocaleString('es-CO');
+  if (totalRes > 0) consultar();
 }
 
 // ── RENDER TABLA ──────────────────────────────────────────────────────────
 function renderTabla() {
   const pp = parseInt(document.getElementById('pp').value);
-  const pages = Math.ceil(filtrado.length / pp);
-  const start = (pagActual - 1) * pp;
-  const pag = filtrado.slice(start, start + pp);
+  const pages = Math.ceil(totalRes / pp);
   const tbody = document.getElementById('tbody');
 
-  document.getElementById('rc').textContent = filtrado.length
-    ? `${filtrado.length.toLocaleString('es-CO')} resultados — Pág. ${pagActual} de ${Math.max(1,pages)}`
+  document.getElementById('rc').textContent = totalRes
+    ? `${totalRes.toLocaleString('es-CO')} resultados — Pág. ${pagActual} de ${Math.max(1,pages)}`
     : 'Sin resultados para esta búsqueda';
 
-  if (!filtrado.length) {
+  if (!totalRes) {
     tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="ico">📭</div><p>Sin resultados — intenta con otro término</p></div></td></tr>`;
     document.getElementById('pag').innerHTML = '';
     return;
   }
 
-  tbody.innerHTML = pag.map((r,i) => {
-    const idx = start + i;
+  tbody.innerHTML = pageRows.map((r,i) => {
     const esCls = r.e === 'Vigente' ? 'bv' : r.e === 'Vencido' ? 'bx' : 'bo';
     const srcCls = r.src === 'vigentes' ? 'sv' : 'sx';
-    return `<tr onclick="abrirModal(${idx})">
+    return `<tr onclick="abrirModal(${i})">
       <td><div class="trunc" title="${esc(r.p)}">${esc(r.p)||'—'}</div></td>
       <td class="mono">${esc(r.rs)||'—'}</td>
       <td><span class="badge ${esCls}">${esc(r.e)||'—'}</span></td>
@@ -397,8 +340,8 @@ function renderTabla() {
       <td><div class="trunc" title="${esc(r.pa)}">${esc(r.pa)||'—'}</div></td>
       <td><div class="trunc" title="${esc(r.ff)}">${esc(r.ff)||'—'}</div></td>
       <td style="white-space:nowrap">${fmtFecha(r.fv)}</td>
-      <td><span class="sb ${srcCls}">${r.src==='vigentes'?'Vigentes':'Vencidos'}</span></td>
-      <td><button class="btn" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();abrirModal(${idx})">Ver</button></td>
+      <td><span class="sb ${srcCls}">${r.src==='vigentes'?'Vigentes':r.src==='tramite'?'En Trámite':'Vencidos'}</span></td>
+      <td><button class="btn" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();abrirModal(${i})">Ver</button></td>
     </tr>`;
   }).join('');
 
@@ -426,16 +369,16 @@ function rango(c,t){
 
 function irPag(p) {
   const pp = parseInt(document.getElementById('pp').value);
-  const pages = Math.ceil(filtrado.length / pp);
+  const pages = Math.ceil(totalRes / pp);
   if (p<1||p>pages) return;
   pagActual = p;
-  renderTabla();
+  consultar();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────
 function abrirModal(idx) {
-  const r = filtrado[idx]; if(!r) return;
+  const r = pageRows[idx]; if(!r) return;
   document.getElementById('mt').textContent = r.p || 'Sin nombre';
   const esCls = r.e==='Vigente'?'bv':r.e==='Vencido'?'bx':'bo';
   document.getElementById('mb').innerHTML = `<div class="dg">
@@ -455,7 +398,7 @@ function abrirModal(idx) {
     <div class="di"><div class="dk">Fecha Expedición</div><div class="dv">${fmtFecha(r.fe)}</div></div>
     <div class="di"><div class="dk">Fecha Vencimiento</div><div class="dv">${fmtFecha(r.fv)}</div></div>
     <div class="di"><div class="dk">Expediente</div><div class="dv mono">${esc(r.exp)||'—'}</div></div>
-    <div class="di"><div class="dk">Fuente Dataset</div><div class="dv">${r.src==='vigentes'?'Vigentes':'Vencidos'}</div></div>
+    <div class="di"><div class="dk">Fuente Dataset</div><div class="dv">${r.src==='vigentes'?'Vigentes':r.src==='tramite'?'En Trámite':'Vencidos'}</div></div>
   </div>`;
   document.getElementById('ov').classList.add('open');
 }
@@ -464,7 +407,7 @@ function cerrarModal(){ document.getElementById('ov').classList.remove('open'); 
 // ── EXPORT XLSX ───────────────────────────────────────────────────────────
 function exportar() {
   const q = document.getElementById('q').value.trim();
-  if (q.length < 3 || !filtrado.length) { alert('Primero realiza una búsqueda para exportar los resultados.'); return; }
+  if (q.length < 3 || !totalRes) { alert('Primero realiza una búsqueda para exportar los resultados.'); return; }
   // El Excel lo genera el servidor (ExcelJS) con los mismos filtros y orden de la pantalla
   const p = new URLSearchParams({ q, estado: filtroEstado, orden: ordenCol, asc: ordenAsc ? '1' : '0' });
   window.location.href = '/api/exportar?' + p.toString();
@@ -473,7 +416,7 @@ function exportar() {
 // ── HELPERS ───────────────────────────────────────────────────────────────
 function limpiar() {
   document.getElementById('q').value='';
-  filtrado=[];filtroEstado='all';pagActual=1;ordenCol='';ordenAsc=true;
+  pageRows=[];totalRes=0;consultaId++;filtroEstado='all';pagActual=1;ordenCol='';ordenAsc=true;
   document.querySelectorAll('.fb').forEach(b=>b.className='fb');
   document.getElementById('fb-all').className='fb fa fa-all';
   document.querySelectorAll('.sa').forEach(s=>s.textContent='');
@@ -481,9 +424,8 @@ function limpiar() {
   document.getElementById('pag').innerHTML='';
   document.getElementById('rc').textContent='Busca un medicamento para ver resultados';
   document.getElementById('mRes').textContent='—';
-  document.getElementById('mVig').textContent='155.807';
-  document.getElementById('mVen').textContent='153.391';
-  document.getElementById('mTot').textContent='309.198';
+  document.getElementById('mVig').textContent='—';
+  document.getElementById('mVen').textContent='—';
 }
 
 function fmtFecha(d) {

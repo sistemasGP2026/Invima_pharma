@@ -7,6 +7,7 @@ const cfg = require('./config');
 const datos = require('./services/datos.service');
 const { actualizar, log } = require('./services/actualizador.service');
 const exportarRoutes = require('./routes/exportar.routes');
+const buscarRoutes = require('./routes/buscar.routes');
 
 const app = express();
 app.disable('x-powered-by');
@@ -26,6 +27,7 @@ app.get('/api/estado', (req, res) => {
   res.json({ registros: datos.total(), cargadoEn: datos.cargadoEnFecha(), cron: cfg.cron, ...estado });
 });
 
+app.use('/api', buscarRoutes);
 app.use('/api', exportarRoutes);
 app.use(express.static(path.join(cfg.raiz, 'public')));
 
