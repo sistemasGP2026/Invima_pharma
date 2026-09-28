@@ -1,0 +1,19 @@
+{
+  "name": "invima-consultor",
+  "version": "2.0.0",
+  "description": "Consultor de registros sanitarios INVIMA (Express) con actualizacion semanal y exportacion a Excel",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --max-old-space-size=2048 src/server.js",
+    "actualizar": "node --max-old-space-size=2048 scripts/actualizar.js",
+    "test:excel": "node --max-old-space-size=2048 scripts/probar-excel.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "compression": "^1.7.4",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.19.2",
+    "node-cron": "^3.0.3"
+  }
+}

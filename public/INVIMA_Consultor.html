@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Consultor Registros Sanitarios INVIMA</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --az:#1B3A6B;--azm:#2E75B6;--azl:#D6E4F7;--azll:#EBF3FB;
+  --ve:#1A5C2E;--vel:#D9EAD3;--vem:#2E7D32;
+  --ro:#C00000;--rol:#FDECEA;
+  --na:#8B4000;--nal:#FCE5CD;
+  --gr:#F2F2F2;--grm:#DDDDDD;--bg:#f5f6f8;
+  --bdr:#e2e2e2;--txt:#222;--txts:#555;--txtm:#888;
+}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+.app{max-width:1300px;margin:0 auto;padding:16px}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,#1B3A6B,#2E75B6);color:#fff;border-radius:12px;padding:20px 24px;margin-bottom:14px}
+.hdr-top{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.hdr-ico{width:42px;height:42px;background:rgba(255,255,255,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0}
+.hdr h1{font-size:18px;font-weight:600}
+.hdr p{font-size:12px;color:rgba(255,255,255,.75);margin-top:4px;margin-left:54px}
+.status{display:flex;align-items:center;gap:8px;margin-top:10px}
+.dot{width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0;transition:background .3s}
+.dot.cargando{background:#FAC775;animation:pulse 1s infinite}
+.dot.listo{background:#97C459}
+.dot.error{background:#E24B4A}
+.stxt{font-size:12px;color:rgba(255,255,255,.85)}
+.prog{width:200px;height:4px;background:rgba(255,255,255,.2);border-radius:4px;overflow:hidden;margin-left:4px;display:none}
+.progb{height:4px;background:#97C459;border-radius:4px;width:0%;transition:width .3s}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* MÉTRICAS */
+.mets{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.mc{background:#fff;border:1px solid var(--bdr);border-radius:10px;padding:12px 14px}
+.mc-l{font-size:10px;color:var(--txtm);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.mc-v{font-size:26px;font-weight:700;line-height:1}
+.t{color:var(--azm)} .v{color:var(--vem)} .x{color:var(--ro)} .r{color:var(--na)}
+
+/* BÚSQUEDA */
+.sp{background:#fff;border:1px solid var(--bdr);border-radius:10px;padding:14px;margin-bottom:12px}
+.sr{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.sw{flex:1;min-width:220px;position:relative}
+.sw svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--txtm);pointer-events:none}
+.si{width:100%;padding:9px 10px 9px 32px;border:1px solid var(--bdr);border-radius:8px;font-size:13px;outline:none;transition:border .15s}
+.si:focus{border-color:var(--azm);box-shadow:0 0 0 3px #D6E4F750}
+.btn{padding:8px 14px;border-radius:8px;border:1px solid var(--bdr);background:#fff;color:var(--txt);font-size:13px;cursor:pointer;font-weight:500;white-space:nowrap;transition:all .15s}
+.btn:hover{background:var(--gr)} .btn:active{transform:scale(.98)}
+.prim{background:var(--azm);color:#fff;border-color:var(--azm)} .prim:hover{background:var(--az)}
+.exp{background:var(--vel);color:var(--vem);border-color:#C0DD97} .exp:hover{background:#C0DD97}
+.fr{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fl{font-size:11px;color:var(--txtm);margin-right:2px}
+.fb{padding:4px 11px;border-radius:20px;border:1px solid var(--bdr);background:#fff;font-size:12px;cursor:pointer;color:var(--txts);transition:all .15s}
+.fb:hover{background:var(--gr)}
+.fa{font-weight:600}
+.fa-all{background:var(--azl);color:var(--az);border-color:var(--azm)}
+.fa-vig{background:var(--vel);color:var(--vem);border-color:#97C459}
+.fa-ven{background:var(--rol);color:var(--ro);border-color:#F09595}
+.sel{padding:5px 9px;border:1px solid var(--bdr);border-radius:7px;font-size:12px;outline:none;cursor:pointer}
+
+/* TABLA */
+.rh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px}
+.rc{font-size:12px;color:var(--txts)}
+.tw{background:#fff;border:1px solid var(--bdr);border-radius:10px;overflow:hidden}
+.ts{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:900px}
+thead{background:var(--az)}
+th{padding:10px 12px;text-align:left;font-size:11px;font-weight:600;color:#fff;white-space:nowrap;letter-spacing:.3px;cursor:pointer;user-select:none}
+th:hover{background:#264f8c}
+th .sa{margin-left:4px;opacity:.6}
+tbody tr{border-bottom:.5px solid var(--bdr);cursor:pointer;transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:#f0f4ff}
+td{padding:9px 12px;font-size:12px;vertical-align:middle}
+.mono{font-family:'Courier New',monospace;font-size:11px;color:var(--txts)}
+.trunc{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700}
+.bv{background:var(--vel);color:#1A5C2E}
+.bx{background:var(--rol);color:#791F1F}
+.bo{background:var(--gr);color:#444}
+.sb{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600}
+.sv{background:#D6E4F7;color:#185FA5}
+.sx{background:#F7C1C1;color:#A32D2D}
+
+/* PAGINACIÓN */
+.pag{display:flex;justify-content:center;align-items:center;gap:4px;padding:12px;flex-wrap:wrap}
+.pb{min-width:30px;height:30px;padding:0 7px;border:1px solid var(--bdr);background:#fff;border-radius:6px;font-size:12px;cursor:pointer;color:var(--txt);display:flex;align-items:center;justify-content:center;transition:all .15s}
+.pb:hover:not(:disabled){background:var(--gr)} .pb.pa{background:var(--azm);color:#fff;border-color:var(--azm)} .pb:disabled{opacity:.35;cursor:not-allowed}
+.pi{font-size:11px;color:var(--txtm);padding:0 4px}
+
+/* MODAL */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:12px}
+.ov.open{display:flex}
+.modal{background:#fff;border-radius:12px;max-width:660px;width:100%;max-height:88vh;overflow-y:auto}
+.mh{padding:18px 22px 14px;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;position:sticky;top:0;background:#fff;z-index:1}
+.mt{font-size:15px;font-weight:600;line-height:1.3}
+.mc2{width:26px;height:26px;border:none;background:var(--gr);border-radius:6px;cursor:pointer;font-size:15px;color:var(--txts);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mc2:hover{background:var(--grm)}
+.mb{padding:18px 22px}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.di{padding:10px 12px;background:var(--gr);border-radius:7px}
+.di.full{grid-column:1/-1}
+.dk{font-size:10px;color:var(--txtm);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.dv{font-size:13px;color:var(--txt);font-weight:500;word-break:break-word}
+
+/* EMPTY / SKELETON */
+.empty{padding:50px 20px;text-align:center;color:var(--txts)}
+.empty .ico{font-size:36px;margin-bottom:10px;opacity:.35}
+.sk{background:linear-gradient(90deg,#eee 25%,#f5f5f5 50%,#eee 75%);background-size:200% 100%;animation:shim 1.2s infinite;border-radius:4px;height:12px}
+@keyframes shim{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* CARGA INICIAL */
+.splash{position:fixed;inset:0;background:#1B3A6B;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s}
+.splash.hide{opacity:0;pointer-events:none}
+.splash h2{color:#fff;font-size:22px;margin-bottom:16px}
+.splash p{color:rgba(255,255,255,.7);font-size:13px;margin-bottom:24px}
+.splash-prog{width:300px;height:6px;background:rgba(255,255,255,.2);border-radius:6px;overflow:hidden}
+.splash-bar{height:6px;background:#97C459;border-radius:6px;width:0%;transition:width .1s}
+.splash-pct{color:#97C459;font-size:14px;font-weight:600;margin-top:8px}
+
+@media(max-width:580px){.dg{grid-template-columns:1fr}.di.full{grid-column:1}}
+</style>
+</head>
+<body>
+
+<!-- SPLASH DE CARGA -->
+<div class="splash" id="splash">
+  <div style="font-size:48px;margin-bottom:16px">💊</div>
+  <h2>Consultor INVIMA</h2>
+  <p id="splashMsg">Cargando 309.198 registros sanitarios…</p>
+  <div class="splash-prog"><div class="splash-bar" id="splashBar"></div></div>
+  <div class="splash-pct" id="splashPct">0%</div>
+</div>
+
+<div class="app" id="appMain" style="display:none">
+
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="hdr-ico">RS</div>
+    <div><h1>Consultor de Registros Sanitarios INVIMA</h1></div>
+  </div>
+  <p>309.198 registros · Vigentes + Vencidos · Fuente: datos.gov.co INVIMA · Actualizado septiembre 2026</p>
+  <div class="status">
+    <div class="dot listo" id="dot"></div>
+    <span class="stxt" id="stxt">Listo — busca cualquier medicamento</span>
+  </div>
+</div>
+
+<div class="mets">
+  <div class="mc"><div class="mc-l">Total registros</div><div class="mc-v t" id="mTot">309.198</div></div>
+  <div class="mc"><div class="mc-l">Vigentes</div><div class="mc-v v" id="mVig">155.807</div></div>
+  <div class="mc"><div class="mc-l">Vencidos</div><div class="mc-v x" id="mVen">153.391</div></div>
+  <div class="mc"><div class="mc-l">Resultados búsqueda</div><div class="mc-v r" id="mRes">—</div></div>
+</div>
+
+<div class="sp">
+  <div class="sr">
+    <div class="sw">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input class="si" id="q" type="text" placeholder="Buscar por nombre, registro sanitario, titular o principio activo…" autocomplete="off">
+    </div>
+    <button class="btn prim" onclick="buscar()">Buscar</button>
+    <button class="btn exp" onclick="exportar()">⬇ Exportar Excel</button>
+    <button class="btn" onclick="limpiar()">↺ Limpiar</button>
+  </div>
+  <div class="fr">
+    <span class="fl">Estado:</span>
+    <button class="fb fa fa-all" id="fb-all" onclick="setFiltro('all',this)">Todos</button>
+    <button class="fb" id="fb-vig" onclick="setFiltro('vig',this)">Vigentes</button>
+    <button class="fb" id="fb-ven" onclick="setFiltro('ven',this)">Vencidos</button>
+    <span style="margin-left:10px" class="fl">Por página:</span>
+    <select class="sel" id="pp" onchange="irPag(1)">
+      <option value="10">10</option>
+      <option value="25" selected>25</option>
+      <option value="50">50</option>
+      <option value="100">100</option>
+    </select>
+  </div>
+</div>
+
+<div class="rh">
+  <span class="rc" id="rc">Busca un medicamento para ver resultados</span>
+</div>
+
+<div class="tw">
+  <div class="ts">
+    <table id="tbl">
+      <thead><tr>
+        <th onclick="ordenar('p')">Producto <span class="sa" id="s-p"></span></th>
+        <th onclick="ordenar('rs')">Registro Sanitario <span class="sa" id="s-rs"></span></th>
+        <th onclick="ordenar('e')">Estado <span class="sa" id="s-e"></span></th>
+        <th onclick="ordenar('t')">Titular <span class="sa" id="s-t"></span></th>
+        <th onclick="ordenar('pa')">Principio Activo <span class="sa" id="s-pa"></span></th>
+        <th onclick="ordenar('ff')">Forma Farm. <span class="sa" id="s-ff"></span></th>
+        <th onclick="ordenar('fv')">Vencimiento <span class="sa" id="s-fv"></span></th>
+        <th>Fuente</th>
+        <th style="width:40px"></th>
+      </tr></thead>
+      <tbody id="tbody">
+        <tr><td colspan="9"><div class="empty"><div class="ico">🔍</div><p>Escribe al menos 3 caracteres para buscar</p></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="pag" id="pag"></div>
+</div>
+</div>
+
+<!-- MODAL -->
+<div class="ov" id="ov" onclick="if(event.target===this)cerrarModal()">
+  <div class="modal">
+    <div class="mh">
+      <div class="mt" id="mt">Detalle</div>
+      <button class="mc2" onclick="cerrarModal()">✕</button>
+    </div>
+    <div class="mb" id="mb"></div>
+  </div>
+</div>
+
+<script>
+// ── DATOS ──────────────────────────────────────────────────────────────────
+let DATA = [];
+let filtrado = [];
+let filtroEstado = 'all';
+let pagActual = 1;
+let ordenCol = '';
+let ordenAsc = true;
+
+// ── CARGA DEL JSON LOCAL ──────────────────────────────────────────────────
+async function cargarDatos() {
+  const splash = document.getElementById('splash');
+  const bar = document.getElementById('splashBar');
+  const pct = document.getElementById('splashPct');
+  const msg = document.getElementById('splashMsg');
+
+  try {
+    msg.textContent = 'Cargando archivo de datos…';
+    bar.style.width = '10%'; pct.textContent = '10%';
+
+    const resp = await fetch('invima_datos.json');
+    if (!resp.ok) throw new Error('El servidor aún no tiene datos (la primera descarga puede tardar varios minutos)');
+
+    const total = parseInt(resp.headers.get('content-length') || 0);
+    const reader = resp.body.getReader();
+    let recibido = 0;
+    const chunks = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      recibido += value.length;
+      if (total) {
+        const p = Math.min(90, Math.round((recibido / total) * 85) + 10);
+        bar.style.width = p + '%';
+        pct.textContent = p + '%';
+        msg.textContent = `Cargando… ${Math.round(recibido/1024/1024)} MB`;
+      }
+    }
+
+    bar.style.width = '92%'; pct.textContent = '92%';
+    msg.textContent = 'Procesando registros…';
+
+    const blob = new Blob(chunks);
+    const texto = await blob.text();
+    bar.style.width = '97%'; pct.textContent = '97%';
+
+    DATA = JSON.parse(texto);
+    bar.style.width = '100%'; pct.textContent = '100%';
+    msg.textContent = `${DATA.length.toLocaleString('es-CO')} registros cargados ✓`;
+
+    await new Promise(r => setTimeout(r, 600));
+    splash.classList.add('hide');
+    document.getElementById('appMain').style.display = 'block';
+    setTimeout(() => splash.style.display='none', 600);
+
+  } catch (err) {
+    msg.textContent = '⚠ Error: ' + err.message;
+    msg.style.color = '#FAC775';
+    document.getElementById('splashPct').textContent = '';
+    bar.style.background = '#E24B4A';
+    // Mostrar instrucciones
+    setTimeout(() => {
+      splash.innerHTML = `
+        <div style="color:#fff;text-align:center;max-width:500px;padding:20px">
+          <div style="font-size:48px;margin-bottom:16px">⚠️</div>
+          <h2 style="margin-bottom:12px">Archivo de datos no encontrado</h2>
+          <p style="color:rgba(255,255,255,.8);line-height:1.6;margin-bottom:16px">
+            Para que funcione, <strong>INVIMA_Consultor.html</strong> e <strong>invima_datos.json</strong>
+            deben estar en la <strong>misma carpeta</strong>.
+          </p>
+          <p style="color:rgba(255,255,255,.7);font-size:13px">
+            Ambos archivos están en tu carpeta de Descargas.<br>
+            Asegúrate de abrirlos desde allí.
+          </p>
+        </div>`;
+    }, 100);
+  }
+}
+
+// ── BÚSQUEDA ──────────────────────────────────────────────────────────────
+function buscar() {
+  const q = document.getElementById('q').value.trim().toLowerCase();
+  if (q.length > 0 && q.length < 3) {
+    document.getElementById('rc').textContent = 'Escribe al menos 3 caracteres';
+    return;
+  }
+  pagActual = 1;
+
+  if (!q) {
+    filtrado = [];
+    renderTabla();
+    document.getElementById('mRes').textContent = '—';
+    document.getElementById('rc').textContent = 'Busca un medicamento para ver resultados';
+    return;
+  }
+
+  const terms = q.split(' ').filter(t => t.length >= 2);
+  filtrado = DATA.filter(r => {
+    const hay = (r.p+' '+r.rs+' '+r.t+' '+r.pa+' '+r.dc+' '+r.datc).toLowerCase();
+    const passTerms = terms.every(t => hay.includes(t));
+    const passEstado = filtroEstado === 'all' ||
+      (filtroEstado === 'vig' && r.e === 'Vigente') ||
+      (filtroEstado === 'ven' && r.e === 'Vencido');
+    return passTerms && passEstado;
+  });
+
+  if (ordenCol) aplicarOrden();
+  actualizarMetricas();
+  renderTabla();
+}
+
+function setFiltro(f, btn) {
+  filtroEstado = f;
+  document.querySelectorAll('.fb').forEach(b => { b.className = 'fb'; });
+  const clases = { all:'fb fa fa-all', vig:'fb fa fa-vig', ven:'fb fa fa-ven' };
+  btn.className = clases[f];
+  if (filtrado.length > 0 || document.getElementById('q').value.trim().length >= 3) buscar();
+}
+
+function ordenar(col) {
+  if (ordenCol === col) ordenAsc = !ordenAsc;
+  else { ordenCol = col; ordenAsc = true; }
+  document.querySelectorAll('.sa').forEach(s => s.textContent = '');
+  document.getElementById('s-'+col).textContent = ordenAsc ? ' ▲' : ' ▼';
+  aplicarOrden();
+  pagActual = 1;
+  renderTabla();
+}
+
+function aplicarOrden() {
+  filtrado.sort((a, b) => {
+    const va = (a[ordenCol] || '').toString().toLowerCase();
+    const vb = (b[ordenCol] || '').toString().toLowerCase();
+    return ordenAsc ? va.localeCompare(vb,'es') : vb.localeCompare(va,'es');
+  });
+}
+
+function actualizarMetricas() {
+  const vig = filtrado.filter(r => r.e === 'Vigente').length;
+  const ven = filtrado.filter(r => r.e === 'Vencido').length;
+  document.getElementById('mRes').textContent = filtrado.length.toLocaleString('es-CO');
+  document.getElementById('mVig').textContent = vig.toLocaleString('es-CO');
+  document.getElementById('mVen').textContent = ven.toLocaleString('es-CO');
+  document.getElementById('mTot').textContent = DATA.length.toLocaleString('es-CO');
+}
+
+// ── RENDER TABLA ──────────────────────────────────────────────────────────
+function renderTabla() {
+  const pp = parseInt(document.getElementById('pp').value);
+  const pages = Math.ceil(filtrado.length / pp);
+  const start = (pagActual - 1) * pp;
+  const pag = filtrado.slice(start, start + pp);
+  const tbody = document.getElementById('tbody');
+
+  document.getElementById('rc').textContent = filtrado.length
+    ? `${filtrado.length.toLocaleString('es-CO')} resultados — Pág. ${pagActual} de ${Math.max(1,pages)}`
+    : 'Sin resultados para esta búsqueda';
+
+  if (!filtrado.length) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="ico">📭</div><p>Sin resultados — intenta con otro término</p></div></td></tr>`;
+    document.getElementById('pag').innerHTML = '';
+    return;
+  }
+
+  tbody.innerHTML = pag.map((r,i) => {
+    const idx = start + i;
+    const esCls = r.e === 'Vigente' ? 'bv' : r.e === 'Vencido' ? 'bx' : 'bo';
+    const srcCls = r.src === 'vigentes' ? 'sv' : 'sx';
+    return `<tr onclick="abrirModal(${idx})">
+      <td><div class="trunc" title="${esc(r.p)}">${esc(r.p)||'—'}</div></td>
+      <td class="mono">${esc(r.rs)||'—'}</td>
+      <td><span class="badge ${esCls}">${esc(r.e)||'—'}</span></td>
+      <td><div class="trunc" title="${esc(r.t)}">${esc(r.t)||'—'}</div></td>
+      <td><div class="trunc" title="${esc(r.pa)}">${esc(r.pa)||'—'}</div></td>
+      <td><div class="trunc" title="${esc(r.ff)}">${esc(r.ff)||'—'}</div></td>
+      <td style="white-space:nowrap">${fmtFecha(r.fv)}</td>
+      <td><span class="sb ${srcCls}">${r.src==='vigentes'?'Vigentes':'Vencidos'}</span></td>
+      <td><button class="btn" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();abrirModal(${idx})">Ver</button></td>
+    </tr>`;
+  }).join('');
+
+  renderPag(pages);
+}
+
+function renderPag(pages) {
+  const pag = document.getElementById('pag');
+  if (pages <= 1) { pag.innerHTML=''; return; }
+  let h = `<button class="pb" onclick="irPag(${pagActual-1})" ${pagActual===1?'disabled':''}>‹</button>`;
+  rango(pagActual, pages).forEach(p => {
+    if (p==='…') h+=`<span class="pi">…</span>`;
+    else h+=`<button class="pb ${p===pagActual?'pa':''}" onclick="irPag(${p})">${p}</button>`;
+  });
+  h+=`<button class="pb" onclick="irPag(${pagActual+1})" ${pagActual===pages?'disabled':''}>›</button>`;
+  pag.innerHTML = h;
+}
+
+function rango(c,t){
+  if(t<=7)return Array.from({length:t},(_,i)=>i+1);
+  if(c<=4)return[1,2,3,4,5,'…',t];
+  if(c>=t-3)return[1,'…',t-4,t-3,t-2,t-1,t];
+  return[1,'…',c-1,c,c+1,'…',t];
+}
+
+function irPag(p) {
+  const pp = parseInt(document.getElementById('pp').value);
+  const pages = Math.ceil(filtrado.length / pp);
+  if (p<1||p>pages) return;
+  pagActual = p;
+  renderTabla();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────
+function abrirModal(idx) {
+  const r = filtrado[idx]; if(!r) return;
+  document.getElementById('mt').textContent = r.p || 'Sin nombre';
+  const esCls = r.e==='Vigente'?'bv':r.e==='Vencido'?'bx':'bo';
+  document.getElementById('mb').innerHTML = `<div class="dg">
+    <div class="di full"><div class="dk">Producto</div><div class="dv">${esc(r.p)||'—'}</div></div>
+    <div class="di"><div class="dk">Registro Sanitario</div><div class="dv mono">${esc(r.rs)||'—'}</div></div>
+    <div class="di"><div class="dk">Estado</div><div class="dv"><span class="badge ${esCls}">${esc(r.e)||'—'}</span></div></div>
+    <div class="di"><div class="dk">Titular</div><div class="dv">${esc(r.t)||'—'}</div></div>
+    <div class="di"><div class="dk">Fabricante / Rol</div><div class="dv">${esc(r.nr)||'—'} <span style="color:#888;font-size:11px">(${esc(r.tr)||'—'})</span></div></div>
+    <div class="di"><div class="dk">Principio Activo</div><div class="dv">${esc(r.pa)||'—'}</div></div>
+    <div class="di"><div class="dk">Concentración</div><div class="dv">${esc(r.con)||'—'} ${esc(r.um)||''} ${esc(r.cant)||''} ${esc(r.ff)||''}</div></div>
+    <div class="di"><div class="dk">Forma Farmacéutica</div><div class="dv">${esc(r.ff)||'—'}</div></div>
+    <div class="di"><div class="dk">Vía de Administración</div><div class="dv">${esc(r.via)||'—'}</div></div>
+    <div class="di"><div class="dk">Modalidad</div><div class="dv">${esc(r.mod)||'—'}</div></div>
+    <div class="di"><div class="dk">Código ATC</div><div class="dv mono">${esc(r.atc)||'—'}</div></div>
+    <div class="di full"><div class="dk">Descripción ATC</div><div class="dv">${esc(r.datc)||'—'}</div></div>
+    <div class="di full"><div class="dk">Descripción Comercial</div><div class="dv">${esc(r.dc)||'—'}</div></div>
+    <div class="di"><div class="dk">Fecha Expedición</div><div class="dv">${fmtFecha(r.fe)}</div></div>
+    <div class="di"><div class="dk">Fecha Vencimiento</div><div class="dv">${fmtFecha(r.fv)}</div></div>
+    <div class="di"><div class="dk">Expediente</div><div class="dv mono">${esc(r.exp)||'—'}</div></div>
+    <div class="di"><div class="dk">Fuente Dataset</div><div class="dv">${r.src==='vigentes'?'Vigentes':'Vencidos'}</div></div>
+  </div>`;
+  document.getElementById('ov').classList.add('open');
+}
+function cerrarModal(){ document.getElementById('ov').classList.remove('open'); }
+
+// ── EXPORT XLSX ───────────────────────────────────────────────────────────
+function exportar() {
+  const q = document.getElementById('q').value.trim();
+  if (q.length < 3 || !filtrado.length) { alert('Primero realiza una búsqueda para exportar los resultados.'); return; }
+  // El Excel lo genera el servidor (ExcelJS) con los mismos filtros y orden de la pantalla
+  const p = new URLSearchParams({ q, estado: filtroEstado, orden: ordenCol, asc: ordenAsc ? '1' : '0' });
+  window.location.href = '/api/exportar?' + p.toString();
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────
+function limpiar() {
+  document.getElementById('q').value='';
+  filtrado=[];filtroEstado='all';pagActual=1;ordenCol='';ordenAsc=true;
+  document.querySelectorAll('.fb').forEach(b=>b.className='fb');
+  document.getElementById('fb-all').className='fb fa fa-all';
+  document.querySelectorAll('.sa').forEach(s=>s.textContent='');
+  document.getElementById('tbody').innerHTML=`<tr><td colspan="9"><div class="empty"><div class="ico">🔍</div><p>Escribe al menos 3 caracteres para buscar</p></div></td></tr>`;
+  document.getElementById('pag').innerHTML='';
+  document.getElementById('rc').textContent='Busca un medicamento para ver resultados';
+  document.getElementById('mRes').textContent='—';
+  document.getElementById('mVig').textContent='155.807';
+  document.getElementById('mVen').textContent='153.391';
+  document.getElementById('mTot').textContent='309.198';
+}
+
+function fmtFecha(d) {
+  if(!d)return '—';
+  try{
+    let dt;
+    if(d.includes('T')) dt=new Date(d);
+    else if(d.includes('/')) { const p=d.split('/'); dt=new Date(p[2],p[0]-1,p[1]); }
+    else dt=new Date(d);
+    if(isNaN(dt))return d;
+    return dt.toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'});
+  }catch{return d;}
+}
+
+function esc(s){
+  if(!s)return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── EVENTOS ───────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('q').addEventListener('keydown', e => { if(e.key==='Enter') buscar(); });
+  document.addEventListener('keydown', e => { if(e.key==='Escape') cerrarModal(); });
+  cargarDatos();
+});
+</script>
+</body>
+</html>
