@@ -26,7 +26,9 @@ const t = v => (v == null ? '' : String(v)).trim();
 
 function minificar(r, src) {
   return {
-    p: t(r.producto), rs: t(r.registrosanitario), e: t(r.estadoregistro), t: t(r.titular),
+    p: t(r.producto), rs: t(r.registrosanitario),
+    // el dataset de tramite no trae estado: se marca explicitamente (igual que agregar_tramite2.py)
+    e: t(r.estadoregistro) || (src === 'tramite' ? 'En trámite' : ''), t: t(r.titular),
     pa: t(r.principioactivo), ff: t(r.formafarmaceutica),
     fv: t(r.fechavencimiento || r.fechainactivo), fe: t(r.fechaexpedicion),
     mod: t(r.modalidad), atc: t(r.atc), datc: t(r.descripcionatc), via: t(r.viaadministracion),

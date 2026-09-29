@@ -13,7 +13,7 @@ module.exports = {
   archivoLog: path.join(raiz, 'logs', 'actualizacion.log'),
   cron: process.env.CRON_ACTUALIZACION || '0 7 * * 1',
   cronTz: process.env.CRON_TZ || 'America/Bogota',
-  datasets: { vigentes: 'i7cb-raxc', tramite: 't4b3-jteh', vencidos: 'qj5z-zabx' },
+  datasets: { vigentes: 'i7cb-raxc', tramite: 'vgr4-gemg', vencidos: 'qj5z-zabx' },
   baseApi: process.env.INVIMA_API_BASE || 'https://www.datos.gov.co/resource/',
   pagina: 2000,          // filas por peticion
   timeoutMs: 90000,      // por peticion
