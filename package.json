@@ -1,7 +1,7 @@
 {
   "name": "invima-consultor",
-  "version": "2.0.0",
-  "description": "Consultor de registros sanitarios INVIMA (Express) con actualizacion semanal y exportacion a Excel",
+  "version": "2.1.0",
+  "description": "Consultor de registros sanitarios INVIMA (medicamentos, dispositivos medicos e insumos) con actualizacion semanal y exportacion a Excel",
   "main": "src/server.js",
   "scripts": {
     "start": "node --max-old-space-size=2048 src/server.js",

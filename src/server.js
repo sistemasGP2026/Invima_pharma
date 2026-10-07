@@ -11,20 +11,15 @@ const buscarRoutes = require('./routes/buscar.routes');
 
 const app = express();
 app.disable('x-powered-by');
-app.use(compression()); // el JSON de ~150 MB baja a ~20 MB por la red
+app.use(compression());
 
 app.get('/', (req, res) => res.redirect('/INVIMA_Consultor.html'));
-
-// El JSON se sirve desde data/ (fuera de public) y se puede cambiar en caliente
-app.get('/invima_datos.json', (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache');
-  res.sendFile(cfg.archivoDatos, err => { if (err && !res.headersSent) res.status(404).end(); });
-});
 
 app.get('/api/estado', (req, res) => {
   let estado = {};
   try { estado = JSON.parse(fs.readFileSync(cfg.archivoEstado, 'utf8')); } catch { /* aun sin estado */ }
-  res.json({ registros: datos.total(), cargadoEn: datos.cargadoEnFecha(), cron: cfg.cron, ...estado });
+  // conteos = totales en memoria (vigentes, vencidos, medicamentos, dispositivos medicos, insumos)
+  res.json({ registros: datos.total(), cargadoEn: datos.cargadoEnFecha(), cron: cfg.cron, ...estado, conteos: datos.conteos() });
 });
 
 app.use('/api', buscarRoutes);
@@ -34,7 +29,8 @@ app.use(express.static(path.join(cfg.raiz, 'public')));
 async function iniciar() {
   try {
     const n = await datos.cargar();
-    log(`Datos cargados en memoria: ${n.toLocaleString('es-CO')} registros`);
+    const c = datos.conteos();
+    log(`Datos cargados en memoria: ${n.toLocaleString('es-CO')} registros (medicamentos ${c.med}, dispositivos medicos ${c.dm}, insumos ${c.ins})`);
   } catch (e) {
     log(`No se pudieron cargar los datos: ${e.message}`);
   }
@@ -45,8 +41,14 @@ async function iniciar() {
   cron.schedule(cfg.cron, () => { actualizar(); }, { timezone: cfg.cronTz });
   log(`Actualizacion programada: "${cfg.cron}" (${cfg.cronTz})`);
 
-  // Primera vez sin datos: descargar de inmediato
-  if (!datos.total()) { log('Sin datos locales: se lanza la primera descarga.'); actualizar(); }
+  // Primera vez sin datos, o datos sin dispositivos (version anterior): descargar de inmediato
+  if (!datos.total()) {
+    log('Sin datos locales: se lanza la primera descarga.');
+    actualizar();
+  } else if (!datos.conteos().dm && !datos.conteos().ins) {
+    log('Los datos locales no incluyen dispositivos medicos: se lanza una actualizacion.');
+    actualizar();
+  }
 }
 
 iniciar().catch(e => { console.error(e); process.exit(1); });

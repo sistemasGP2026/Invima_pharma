@@ -38,7 +38,7 @@ body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--tx
 .mc{background:#fff;border:1px solid var(--bdr);border-radius:10px;padding:12px 14px}
 .mc-l{font-size:10px;color:var(--txtm);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
 .mc-v{font-size:26px;font-weight:700;line-height:1}
-.t{color:var(--azm)} .v{color:var(--vem)} .x{color:var(--ro)} .r{color:var(--na)}
+.t{color:var(--azm)} .v{color:var(--vem)} .x{color:var(--ro)} .r{color:var(--na)} .d{color:#1B7A8C} .i{color:#6B3FA0}
 
 /* BÚSQUEDA */
 .sp{background:#fff;border:1px solid var(--bdr);border-radius:10px;padding:14px;margin-bottom:12px}
@@ -84,6 +84,8 @@ td{padding:9px 12px;font-size:12px;vertical-align:middle}
 .sb{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600}
 .sv{background:#D6E4F7;color:#185FA5}
 .sx{background:#F7C1C1;color:#A32D2D}
+.sd{background:#D5EEF1;color:#0F5F6B}
+.si{background:#E8DDF5;color:#4C2A80}
 
 /* PAGINACIÓN */
 .pag{display:flex;justify-content:center;align-items:center;gap:4px;padding:12px;flex-wrap:wrap}
@@ -142,10 +144,10 @@ td{padding:9px 12px;font-size:12px;vertical-align:middle}
     <div class="hdr-ico">RS</div>
     <div><h1>Consultor de Registros Sanitarios INVIMA</h1></div>
   </div>
-  <p><span id="nReg">—</span> registros · Vigentes + Vencidos · Fuente: datos.gov.co INVIMA · Actualizado septiembre 2026</p>
+  <p><span id="nReg">—</span> registros · Medicamentos, dispositivos médicos e insumos · Fuente: datos.gov.co INVIMA · <span id="actualizado">Actualizado septiembre 2026</span></p>
   <div class="status">
     <div class="dot listo" id="dot"></div>
-    <span class="stxt" id="stxt">Listo — busca cualquier medicamento</span>
+    <span class="stxt" id="stxt">Listo — busca cualquier medicamento, dispositivo médico o insumo</span>
   </div>
 </div>
 
@@ -153,6 +155,8 @@ td{padding:9px 12px;font-size:12px;vertical-align:middle}
   <div class="mc"><div class="mc-l">Total registros</div><div class="mc-v t" id="mTot">—</div></div>
   <div class="mc"><div class="mc-l">Vigentes</div><div class="mc-v v" id="mVig">—</div></div>
   <div class="mc"><div class="mc-l">Vencidos</div><div class="mc-v x" id="mVen">—</div></div>
+  <div class="mc"><div class="mc-l">Dispositivos médicos</div><div class="mc-v d" id="mDm">—</div></div>
+  <div class="mc"><div class="mc-l">Insumos</div><div class="mc-v i" id="mIns">—</div></div>
   <div class="mc"><div class="mc-l">Resultados búsqueda</div><div class="mc-v r" id="mRes">—</div></div>
 </div>
 
@@ -160,7 +164,7 @@ td{padding:9px 12px;font-size:12px;vertical-align:middle}
   <div class="sr">
     <div class="sw">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input class="si" id="q" type="text" placeholder="Buscar por nombre, registro sanitario, titular o principio activo…" autocomplete="off">
+      <input class="si" id="q" type="text" placeholder="Buscar por nombre, registro sanitario, titular, principio activo o marca…" autocomplete="off">
     </div>
     <button class="btn prim" onclick="buscar()">Buscar</button>
     <button class="btn exp" onclick="exportar()">⬇ Exportar Excel</button>
@@ -182,7 +186,7 @@ td{padding:9px 12px;font-size:12px;vertical-align:middle}
 </div>
 
 <div class="rh">
-  <span class="rc" id="rc">Busca un medicamento para ver resultados</span>
+  <span class="rc" id="rc">Busca un medicamento, dispositivo médico o insumo para ver resultados</span>
 </div>
 
 <div class="tw">
@@ -193,8 +197,8 @@ td{padding:9px 12px;font-size:12px;vertical-align:middle}
         <th onclick="ordenar('rs')">Registro Sanitario <span class="sa" id="s-rs"></span></th>
         <th onclick="ordenar('e')">Estado <span class="sa" id="s-e"></span></th>
         <th onclick="ordenar('t')">Titular <span class="sa" id="s-t"></span></th>
-        <th onclick="ordenar('pa')">Principio Activo <span class="sa" id="s-pa"></span></th>
-        <th onclick="ordenar('ff')">Forma Farm. <span class="sa" id="s-ff"></span></th>
+        <th onclick="ordenar('pa')">Principio Activo / Marca <span class="sa" id="s-pa"></span></th>
+        <th onclick="ordenar('ff')">Forma Farm. / Presentación <span class="sa" id="s-ff"></span></th>
         <th onclick="ordenar('fv')">Vencimiento <span class="sa" id="s-fv"></span></th>
         <th>Fuente</th>
         <th style="width:40px"></th>
@@ -227,6 +231,20 @@ let filtroEstado = 'all';
 let pagActual = 1;
 let ordenCol = '';
 let ordenAsc = true;
+let totales = null;     // conteos globales (para restaurar las tarjetas al limpiar)
+
+const f = n => Number(n || 0).toLocaleString('es-CO');
+const TIPO = { med: 'Medicamento', dm: 'Dispositivo médico', ins: 'Insumo' };
+function fuente(r) {
+  if (r.src === 'dispositivos') return r.cat === 'ins' ? ['Insumos', 'si'] : ['Dispositivos', 'sd'];
+  return r.src === 'vigentes' ? ['Vigentes', 'sv'] : r.src === 'tramite' ? ['En Trámite', 'sx'] : ['Vencidos', 'sx'];
+}
+function pintarTarjetas(c) {
+  document.getElementById('mVig').textContent = f(c.vigentes);
+  document.getElementById('mVen').textContent = f(c.vencidos);
+  document.getElementById('mDm').textContent = f(c.dm);
+  document.getElementById('mIns').textContent = f(c.ins);
+}
 
 // ── ESTADO DEL SERVIDOR (ya no se descarga el JSON completo) ──────────────
 async function cargarDatos() {
@@ -237,12 +255,13 @@ async function cargarDatos() {
     if (!r.ok) throw new Error('El servidor no responde');
     const e = await r.json();
     if (!e.registros) throw new Error('El servidor aún no tiene datos (la primera descarga puede tardar unos minutos)');
-    const f = n => Number(n).toLocaleString('es-CO');
     document.getElementById('mTot').textContent = f(e.registros);
     document.getElementById('nReg').textContent = f(e.registros);
-    if (e.resumen) {
-      document.getElementById('mVig').textContent = f(e.resumen.vigentes || 0);
-      document.getElementById('mVen').textContent = f(e.resumen.vencidos || 0);
+    totales = e.conteos || { vigentes: e.resumen?.vigentes, vencidos: e.resumen?.vencidos, dm: 0, ins: 0 };
+    pintarTarjetas(totales);
+    const fecha = e.ultimaActualizacionOk || e.cargadoEn;
+    if (fecha && !isNaN(new Date(fecha))) {
+      document.getElementById('actualizado').textContent = 'Actualizado ' + new Date(fecha).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
     }
     splash.classList.add('hide');
     document.getElementById('appMain').style.display = 'block';
@@ -270,7 +289,8 @@ function limpiarResultados() {
   pageRows = []; totalRes = 0;
   renderTabla();
   document.getElementById('mRes').textContent = '—';
-  document.getElementById('rc').textContent = 'Busca un medicamento para ver resultados';
+  document.getElementById('rc').textContent = 'Busca un medicamento, dispositivo médico o insumo para ver resultados';
+  if (totales) pintarTarjetas(totales);
 }
 
 let consultaId = 0;
@@ -286,10 +306,10 @@ async function consultar() {
     if (id !== consultaId) return; // llego una respuesta mas nueva
     if (!r.ok) throw new Error(d.error || 'Error de búsqueda');
     pageRows = d.filas; totalRes = d.total;
-    document.getElementById('mRes').textContent = d.total.toLocaleString('es-CO');
-    document.getElementById('mVig').textContent = d.vig.toLocaleString('es-CO');
-    document.getElementById('mVen').textContent = d.ven.toLocaleString('es-CO');
-    document.getElementById('mTot').textContent = d.registros.toLocaleString('es-CO');
+    document.getElementById('mRes').textContent = f(d.total);
+    // las tarjetas muestran los conteos dentro de los resultados de la busqueda
+    pintarTarjetas({ vigentes: d.vig, vencidos: d.ven, dm: d.dm, ins: d.ins });
+    document.getElementById('mTot').textContent = f(d.registros);
     renderTabla();
   } catch (err) {
     if (id === consultaId) document.getElementById('rc').textContent = '⚠ ' + err.message;
@@ -331,16 +351,19 @@ function renderTabla() {
 
   tbody.innerHTML = pageRows.map((r,i) => {
     const esCls = r.e === 'Vigente' ? 'bv' : r.e === 'Vencido' ? 'bx' : 'bo';
-    const srcCls = r.src === 'vigentes' ? 'sv' : 'sx';
+    const [srcTxt, srcCls] = fuente(r);
+    const disp = r.src === 'dispositivos';
+    const c5 = disp ? r.ma : r.pa;   // medicamento: principio activo · dispositivo/insumo: marca
+    const c6 = disp ? r.pre : r.ff;  // medicamento: forma farmaceutica · dispositivo/insumo: presentacion comercial
     return `<tr onclick="abrirModal(${i})">
       <td><div class="trunc" title="${esc(r.p)}">${esc(r.p)||'—'}</div></td>
       <td class="mono">${esc(r.rs)||'—'}</td>
       <td><span class="badge ${esCls}">${esc(r.e)||'—'}</span></td>
       <td><div class="trunc" title="${esc(r.t)}">${esc(r.t)||'—'}</div></td>
-      <td><div class="trunc" title="${esc(r.pa)}">${esc(r.pa)||'—'}</div></td>
-      <td><div class="trunc" title="${esc(r.ff)}">${esc(r.ff)||'—'}</div></td>
+      <td><div class="trunc" title="${esc(c5)}">${esc(c5)||'—'}</div></td>
+      <td><div class="trunc" title="${esc(c6)}">${esc(c6)||'—'}</div></td>
       <td style="white-space:nowrap">${fmtFecha(r.fv)}</td>
-      <td><span class="sb ${srcCls}">${r.src==='vigentes'?'Vigentes':r.src==='tramite'?'En Trámite':'Vencidos'}</span></td>
+      <td><span class="sb ${srcCls}">${srcTxt}</span></td>
       <td><button class="btn" style="padding:3px 8px;font-size:11px" onclick="event.stopPropagation();abrirModal(${i})">Ver</button></td>
     </tr>`;
   }).join('');
@@ -381,6 +404,29 @@ function abrirModal(idx) {
   const r = pageRows[idx]; if(!r) return;
   document.getElementById('mt').textContent = r.p || 'Sin nombre';
   const esCls = r.e==='Vigente'?'bv':r.e==='Vencido'?'bx':'bo';
+  if (r.src === 'dispositivos') {
+    document.getElementById('mb').innerHTML = `<div class="dg">
+    <div class="di full"><div class="dk">Producto</div><div class="dv">${esc(r.p)||'—'}</div></div>
+    <div class="di"><div class="dk">Registro Sanitario</div><div class="dv mono">${esc(r.rs)||'—'}</div></div>
+    <div class="di"><div class="dk">Estado</div><div class="dv"><span class="badge ${esCls}">${esc(r.e)||'—'}</span></div></div>
+    <div class="di"><div class="dk">Tipo</div><div class="dv">${TIPO[r.cat]||'Dispositivo médico'}</div></div>
+    <div class="di"><div class="dk">Grupo INVIMA</div><div class="dv">${esc(r.gr)||'—'}</div></div>
+    <div class="di"><div class="dk">Titular</div><div class="dv">${esc(r.t)||'—'}</div></div>
+    <div class="di"><div class="dk">Ciudad / País Titular</div><div class="dv">${esc([r.ct,r.pt].filter(Boolean).join(', '))||'—'}</div></div>
+    <div class="di full"><div class="dk">Fabricante / Rol</div><div class="dv">${esc(r.nr)||'—'} <span style="color:#888;font-size:11px">(${esc(r.tr)||'—'})</span></div></div>
+    <div class="di"><div class="dk">Marca</div><div class="dv">${esc(r.ma)||'—'}</div></div>
+    <div class="di"><div class="dk">Presentación Comercial</div><div class="dv">${esc(r.pre)||'—'}</div></div>
+    <div class="di"><div class="dk">Nivel de Riesgo</div><div class="dv">${esc(r.nv)||'—'}</div></div>
+    <div class="di"><div class="dk">Vida Útil</div><div class="dv">${esc(r.vu)||'—'}</div></div>
+    <div class="di full"><div class="dk">Usos</div><div class="dv">${esc(r.uso)||'—'}</div></div>
+    <div class="di"><div class="dk">Modalidad</div><div class="dv">${esc(r.mod)||'—'}</div></div>
+    <div class="di"><div class="dk">Fecha Vencimiento</div><div class="dv">${fmtFecha(r.fv)}</div></div>
+    <div class="di"><div class="dk">Expediente</div><div class="dv mono">${esc(r.exp)||'—'}</div></div>
+    <div class="di"><div class="dk">Fuente Dataset</div><div class="dv">Dispositivos médicos y otras tecnologías</div></div>
+  </div>`;
+    document.getElementById('ov').classList.add('open');
+    return;
+  }
   document.getElementById('mb').innerHTML = `<div class="dg">
     <div class="di full"><div class="dk">Producto</div><div class="dv">${esc(r.p)||'—'}</div></div>
     <div class="di"><div class="dk">Registro Sanitario</div><div class="dv mono">${esc(r.rs)||'—'}</div></div>
@@ -422,10 +468,9 @@ function limpiar() {
   document.querySelectorAll('.sa').forEach(s=>s.textContent='');
   document.getElementById('tbody').innerHTML=`<tr><td colspan="9"><div class="empty"><div class="ico">🔍</div><p>Escribe al menos 3 caracteres para buscar</p></div></td></tr>`;
   document.getElementById('pag').innerHTML='';
-  document.getElementById('rc').textContent='Busca un medicamento para ver resultados';
+  document.getElementById('rc').textContent='Busca un medicamento, dispositivo médico o insumo para ver resultados';
   document.getElementById('mRes').textContent='—';
-  document.getElementById('mVig').textContent='—';
-  document.getElementById('mVen').textContent='—';
+  if (totales) pintarTarjetas(totales);
 }
 
 function fmtFecha(d) {

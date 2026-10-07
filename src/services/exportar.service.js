@@ -18,9 +18,11 @@ function fmtFecha(d) {
   return `${p2(dt.getUTCDate())}/${p2(dt.getUTCMonth() + 1)}/${dt.getUTCFullYear()}`;
 }
 
-const FUENTE = { vigentes: 'Vigentes', tramite: 'En Trámite', vencidos: 'Vencidos' };
+const FUENTE = { vigentes: 'Vigentes', tramite: 'En Trámite', vencidos: 'Vencidos', dispositivos: 'Dispositivos médicos' };
+const TIPO = { med: 'Medicamento', dm: 'Dispositivo médico', ins: 'Insumo' };
 
 const COLUMNAS = [
+  { header: 'Tipo', key: 'tipo' },
   { header: 'Producto', key: 'producto' },
   { header: 'Registro Sanitario', key: 'registro' },
   { header: 'Estado', key: 'estado' },
@@ -32,6 +34,12 @@ const COLUMNAS = [
   { header: 'Unidad Medida', key: 'unidad' },
   { header: 'Forma Farmacéutica', key: 'forma' },
   { header: 'Vía Adm.', key: 'via' },
+  { header: 'Marca', key: 'marca' },
+  { header: 'Presentación Comercial', key: 'presentacion' },
+  { header: 'Grupo INVIMA', key: 'grupo' },
+  { header: 'Nivel de Riesgo', key: 'nivelRiesgo' },
+  { header: 'Vida Útil', key: 'vidaUtil' },
+  { header: 'Usos', key: 'usos' },
   { header: 'Modalidad', key: 'modalidad' },
   { header: 'ATC', key: 'atc' },
   { header: 'Descripción ATC', key: 'descAtc' },
@@ -42,12 +50,13 @@ const COLUMNAS = [
   { header: 'Fuente', key: 'fuente' }
 ];
 
-// 1-based: Registro, Estado, Concentración, Unidad, Vía, ATC, fechas, Expediente, Fuente
-const CENTRADOS = [2, 3, 8, 9, 11, 13, 16, 17, 18, 19];
+// 1-based: Tipo, Registro, Estado, Concentración, Unidad, Vía, Nivel de riesgo, Vida útil, ATC, fechas, Expediente, Fuente
+const CENTRADOS = [1, 3, 4, 9, 10, 12, 16, 17, 20, 23, 24, 25, 26];
 
 /** Un registro por fila (ya es plano; solo se renombran y normalizan campos). */
 function aplanar(regs) {
   return regs.map(r => ({
+    tipo: TIPO[r.cat] || 'Medicamento',
     producto: r.p || '',
     registro: r.rs || '',
     estado: r.e || '',
@@ -59,6 +68,12 @@ function aplanar(regs) {
     unidad: r.um || '',
     forma: r.ff || '',
     via: r.via || '',
+    marca: r.ma || '',
+    presentacion: r.pre || '',
+    grupo: r.gr || '',
+    nivelRiesgo: r.nv || '',
+    vidaUtil: r.vu || '',
+    usos: r.uso || '',
     modalidad: r.mod || '',
     atc: r.atc || '',
     descAtc: r.datc || '',

@@ -8,10 +8,10 @@ const router = Router();
 router.get('/exportar', async (req, res) => {
   const q = String(req.query.q || '').trim();
   if (q.length < 3) return res.status(400).json({ error: 'Escribe al menos 3 caracteres para exportar' });
-  if (!datos.total()) return res.status(503).json({ error: 'Datos aun no cargados' });
+  if (!datos.total()) return res.status(503).json({ error: 'Datos aún no cargados; intenta de nuevo en unos segundos' });
 
   const estado = ['all', 'vig', 'ven'].includes(req.query.estado) ? req.query.estado : 'all';
-  const orden = ['p', 'rs', 'e', 't', 'pa', 'ff', 'fv', 'src'].includes(req.query.orden) ? req.query.orden : '';
+  const orden = ['p', 'rs', 'e', 't', 'pa', 'ff', 'fv', 'src', 'cat'].includes(req.query.orden) ? req.query.orden : '';
   const asc = req.query.asc !== '0';
 
   try {
